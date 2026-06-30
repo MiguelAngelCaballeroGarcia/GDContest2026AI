@@ -223,6 +223,46 @@ void legalize_graph_or_throw(std::ostream& os,
     );
 }
 
+[[nodiscard]] bool legalize_graph_until(Graph& graph,
+                                        std::chrono::steady_clock::time_point deadline) {
+    const DrawingLegalizationResult result = legalize_graph_drawing(graph, deadline);
+    return result.after.ok();
+}
+
+[[nodiscard]] int32_t select_adaptive_lane_count(const Graph& graph,
+                                                 int32_t worker_threads,
+                                                 int64_t available_final_phase_ms) noexcept {
+    if (worker_threads <= 1) {
+        return 1;
+    }
+
+    const int32_t nodes = graph.num_nodes();
+    const int32_t edges = graph.num_edges();
+    const bool very_large_graph = (nodes >= 8000 || edges >= 18000);
+    const bool large_graph = (nodes >= 2500 || edges >= 5000);
+    const bool medium_graph = (nodes >= 1000 || edges >= 2500);
+
+    int32_t size_cap = worker_threads;
+    if (very_large_graph) {
+        size_cap = 4;
+    } else if (large_graph) {
+        size_cap = 8;
+    } else if (medium_graph) {
+        size_cap = 12;
+    }
+
+    const int64_t min_budget_per_lane_ms = very_large_graph ? 12000 : (large_graph ? 8000 : (medium_graph ? 5000 : 2500));
+    const int32_t budget_cap = std::max<int32_t>(1, static_cast<int32_t>(
+        std::max<int64_t>(1, available_final_phase_ms) / std::max<int64_t>(1, min_budget_per_lane_ms)));
+
+    int32_t lane_count = std::min(worker_threads, std::min(size_cap, budget_cap));
+    if (available_final_phase_ms >= 8000) {
+        lane_count = std::max<int32_t>(2, lane_count);
+    }
+
+    return std::max<int32_t>(1, std::min(worker_threads, lane_count));
+}
+
 [[nodiscard]] int64_t reserve_final_polish_time_ms(const Graph& graph,
                                                    int64_t remaining_ms,
                                                    bool enable_final_polish) noexcept {
@@ -758,11 +798,16 @@ TwoPhaseOptimizationPipeline::TwoPhaseOptimizationPipeline(TwoPhasePipelineConfi
         adaptive_sa_budget_ms = std::max<int64_t>(0, available_final_phase_ms - adaptive_crossing_budget_ms);
     }
 
+    const int32_t lane_count = select_adaptive_lane_count(
+        graph,
+        std::max<int32_t>(1, worker_threads),
+        available_final_phase_ms);
+
     timing.final_lahc_budget_ms = adaptive_crossing_budget_ms;
     timing.final_sa_budget_ms = adaptive_sa_budget_ms;
     timing.final_polish_budget_ms = reserved_polish_clamped;
-    timing.bb_mode_enabled = ((worker_threads > 1) && ((adaptive_crossing_budget_ms > 0) || (adaptive_sa_budget_ms > 0))) ? 1 : 0;
-    if (worker_threads <= 1) {
+    timing.bb_mode_enabled = ((lane_count > 1) && ((adaptive_crossing_budget_ms > 0) || (adaptive_sa_budget_ms > 0))) ? 1 : 0;
+    if (lane_count <= 1) {
         timing.bb_disabled_reason_code = 1; // single lane
     } else if (adaptive_crossing_budget_ms <= 0 && adaptive_sa_budget_ms <= 0) {
         timing.bb_disabled_reason_code = 2; // no final-phase budget
@@ -770,7 +815,6 @@ TwoPhaseOptimizationPipeline::TwoPhaseOptimizationPipeline(TwoPhasePipelineConfi
         timing.bb_disabled_reason_code = 0;
     }
 
-    const int32_t lane_count = std::max<int32_t>(1, worker_threads);
     const int32_t guaranteed_lahc_lane = (lane_count == 1) ? 0 : 1;
     const auto phase_deadline = std::min(
         hard_deadline,
@@ -973,9 +1017,13 @@ TwoPhaseOptimizationPipeline::TwoPhaseOptimizationPipeline(TwoPhasePipelineConfi
                     const int64_t base_min_sa_chunk_ms = very_large_graph ? 20000 : (large_graph ? 8000 : 2500);
                     int64_t adaptive_min_sa_chunk_ms = base_min_sa_chunk_ms;
                     const int64_t min_sa_chunk_iters = 50000;
+                    const int32_t max_init_failures_per_sync_round = very_large_graph ? 1 : 2;
+                    const int32_t max_consecutive_init_failures = very_large_graph ? 2 : 3;
                     int32_t consecutive_sa_init_failures = 0;
-                    while (std::chrono::steady_clock::now() < phase_deadline) {
+                    bool sa_lane_disabled_due_to_init_failures = false;
+                    while (std::chrono::steady_clock::now() < phase_deadline && !sa_lane_disabled_due_to_init_failures) {
                         int64_t chunk_iterations = 0;
+                        int32_t init_failures_in_sync_round = 0;
                         const auto sync_floor_deadline = std::min(
                             phase_deadline,
                             std::chrono::steady_clock::now() + std::chrono::milliseconds(adaptive_min_sa_chunk_ms));
@@ -992,7 +1040,7 @@ TwoPhaseOptimizationPipeline::TwoPhaseOptimizationPipeline(TwoPhasePipelineConfi
                                 chunk_deadline = sync_floor_deadline;
                             }
 
-                            lane_sa.run(local.graph, chunk_deadline);
+                            lane_sa.run_chunk(local.graph, chunk_deadline);
                             ++local.sa_chunks_total;
                             local.sa_stats = lane_sa.get_run_stats();
                             chunk_iterations += local.sa_stats.iterations;
@@ -1005,12 +1053,22 @@ TwoPhaseOptimizationPipeline::TwoPhaseOptimizationPipeline(TwoPhasePipelineConfi
                             } else if (local.sa_stats.exit_reason_code == 3) {
                                 ++local.sa_init_failed_chunks_total;
                                 ++consecutive_sa_init_failures;
+                                ++init_failures_in_sync_round;
                                 // Back off chunk duration when initialization repeatedly
                                 // times out on large instances.
                                 if (consecutive_sa_init_failures >= 2) {
                                     adaptive_min_sa_chunk_ms = std::min<int64_t>(
                                         std::max<int64_t>(adaptive_min_sa_chunk_ms * 2, base_min_sa_chunk_ms),
                                         120000);
+                                }
+
+                                // If initialization keeps failing, stop spending this lane's SA time budget.
+                                if (consecutive_sa_init_failures >= max_consecutive_init_failures) {
+                                    sa_lane_disabled_due_to_init_failures = true;
+                                    break;
+                                }
+                                if (init_failures_in_sync_round >= max_init_failures_per_sync_round) {
+                                    break;
                                 }
                             } else {
                                 consecutive_sa_init_failures = 0;
@@ -1052,6 +1110,7 @@ TwoPhaseOptimizationPipeline::TwoPhaseOptimizationPipeline(TwoPhasePipelineConfi
                         ++local.import_attempts;
                         if (import_shared_layout(local.graph, local.stats)) {
                             ++local.import_successes;
+                            lane_sa.invalidate_incremental_state();
                         }
                     }
                 }
@@ -1402,10 +1461,21 @@ TwoPhaseOptimizationPipeline::TwoPhaseOptimizationPipeline(TwoPhasePipelineConfi
         initial_fdl_target_ms);
     timing.initial_fdl_budget_ms = initial_fdl_budget_ms;
 
-    const bool use_exact_fdl_stats = should_use_exact_crossing_stats(graph, stage0_remaining_ms);
-    const CrossingStats pre_initial_fdl_stats = use_exact_fdl_stats
-        ? compute_crossing_stats(graph)
-        : CrossingStats{};
+    bool use_exact_fdl_stats = should_use_exact_crossing_stats(graph, stage0_remaining_ms);
+    CrossingStats pre_initial_fdl_stats{};
+    if (use_exact_fdl_stats) {
+        const int64_t pre_fdl_stats_budget_ms = std::clamp<int64_t>(
+            initial_fdl_budget_ms / 4,
+            50,
+            1500);
+        const auto pre_fdl_stats_deadline = std::min(
+            deadline,
+            std::chrono::steady_clock::now() + std::chrono::milliseconds(pre_fdl_stats_budget_ms));
+        if (!compute_crossing_stats_until(graph, pre_initial_fdl_stats, pre_fdl_stats_deadline)) {
+            use_exact_fdl_stats = false;
+            pre_initial_fdl_stats = CrossingStats{};
+        }
+    }
     const float initial_distance = compute_force_directed_optimal_distance(graph);
     const auto initial_fdl_start = std::chrono::steady_clock::now();
     const int32_t generous_iteration_cap = std::max<int32_t>(
@@ -1439,6 +1509,7 @@ TwoPhaseOptimizationPipeline::TwoPhaseOptimizationPipeline(TwoPhasePipelineConfi
             int32_t start_id{-1};
             Graph graph;
             CrossingStats stats{};
+            bool stats_valid{false};
             ForceDirectedRunStats run_stats{};
         };
 
@@ -1471,10 +1542,23 @@ TwoPhaseOptimizationPipeline::TwoPhaseOptimizationPipeline(TwoPhasePipelineConfi
                     generous_iteration_cap + (start_id * generous_iteration_cap) / std::max<int32_t>(1, fdl_starts_requested));
                 local_fdl.run(candidate_graph, lane_iters, initial_distance, initial_fdl_phase_deadline);
             }
-            legalize_graph_or_throw(std::cerr, job_index, "initial FDL", candidate_graph);
+            bool candidate_legalized = false;
+            const auto after_fdl = std::chrono::steady_clock::now();
+            if (after_fdl < initial_fdl_phase_deadline) {
+                candidate_legalized = legalize_graph_until(candidate_graph, initial_fdl_phase_deadline);
+                if (!candidate_legalized && std::chrono::steady_clock::now() < initial_fdl_phase_deadline) {
+                    return result;
+                }
+            }
 
             if (use_exact_fdl_stats) {
-                result.stats = compute_crossing_stats(candidate_graph);
+                if (!candidate_legalized ||
+                    std::chrono::steady_clock::now() >= initial_fdl_phase_deadline ||
+                    !compute_crossing_stats_until(candidate_graph, result.stats, initial_fdl_phase_deadline)) {
+                    result.stats_valid = false;
+                } else {
+                    result.stats_valid = true;
+                }
             }
             result.run_stats = local_fdl.last_run_stats();
             result.graph = std::move(candidate_graph);
@@ -1538,11 +1622,16 @@ TwoPhaseOptimizationPipeline::TwoPhaseOptimizationPipeline(TwoPhasePipelineConfi
             }
 
             if (use_exact_fdl_stats) {
-                if (candidate.stats < best_fdl_stats) {
+                if (candidate.stats_valid && candidate.stats < best_fdl_stats) {
                     best_fdl_stats = candidate.stats;
                     best_fdl_graph = std::move(candidate.graph);
                     fdl_best_start_index = candidate.start_id;
                     best_fdl_run_stats = candidate.run_stats;
+                } else if (!best_fdl_selected || is_better_fdl_proxy(candidate.run_stats, best_fdl_run_stats)) {
+                    best_fdl_graph = std::move(candidate.graph);
+                    fdl_best_start_index = candidate.start_id;
+                    best_fdl_run_stats = candidate.run_stats;
+                    best_fdl_selected = true;
                 }
             } else if (!best_fdl_selected || is_better_fdl_proxy(candidate.run_stats, best_fdl_run_stats)) {
                 best_fdl_graph = std::move(candidate.graph);
@@ -1567,14 +1656,20 @@ TwoPhaseOptimizationPipeline::TwoPhaseOptimizationPipeline(TwoPhasePipelineConfi
                 best_fdl_run_stats);
 
             if (adaptive_fdl_extension_ms > 0) {
+                bool stop_extension = false;
                 const Graph extension_baseline_graph = graph;
-                const CrossingStats extension_baseline_stats = use_exact_fdl_stats
-                    ? compute_crossing_stats(extension_baseline_graph)
-                    : CrossingStats{};
+                CrossingStats extension_baseline_stats{};
+                bool extension_baseline_stats_valid = !use_exact_fdl_stats;
 
                 const auto extension_deadline = std::min(
                     deadline,
                     extension_now + std::chrono::milliseconds(adaptive_fdl_extension_ms));
+                if (use_exact_fdl_stats) {
+                    extension_baseline_stats_valid = compute_crossing_stats_until(
+                        extension_baseline_graph,
+                        extension_baseline_stats,
+                        extension_deadline);
+                }
                 ForceDirectedLayout extension_fdl;
                 extension_fdl.run(graph, generous_iteration_cap, initial_distance, extension_deadline);
                 const ForceDirectedRunStats extension_stats = extension_fdl.last_run_stats();
@@ -1583,10 +1678,19 @@ TwoPhaseOptimizationPipeline::TwoPhaseOptimizationPipeline(TwoPhasePipelineConfi
                 total_fdl_iterations_executed += extension_stats.executed_iterations;
                 total_fdl_iterations_budget += extension_stats.max_iterations;
 
-                legalize_graph_or_throw(std::cerr, job_index, "initial FDL extension", graph);
-                if (use_exact_fdl_stats) {
-                    const CrossingStats extension_stats_after = compute_crossing_stats(graph);
-                    if (extension_baseline_stats < extension_stats_after) {
+                if (!legalize_graph_until(graph, extension_deadline)) {
+                    graph = extension_baseline_graph;
+                    stop_extension = true;
+                }
+                if (!stop_extension && use_exact_fdl_stats) {
+                    CrossingStats extension_stats_after{};
+                    const bool extension_stats_valid = compute_crossing_stats_until(
+                        graph,
+                        extension_stats_after,
+                        extension_deadline);
+                    if (!extension_stats_valid ||
+                        !extension_baseline_stats_valid ||
+                        extension_baseline_stats < extension_stats_after) {
                         graph = extension_baseline_graph;
                     }
                 }
@@ -1613,7 +1717,10 @@ TwoPhaseOptimizationPipeline::TwoPhaseOptimizationPipeline(TwoPhasePipelineConfi
     timing.initial_fdl_extension_budget_ms = adaptive_fdl_extension_ms;
     timing.initial_fdl_extension_deadline_hit = extension_fdl_deadline_hit ? 1 : 0;
 
-    const CrossingStats post_initial_fdl_stats = compute_crossing_stats(graph);
+    CrossingStats post_initial_fdl_stats{};
+    if (!compute_crossing_stats_until(graph, post_initial_fdl_stats, deadline)) {
+        post_initial_fdl_stats = compute_crossing_stats(graph);
+    }
 
     const bool fdl_only_mode = parse_env_bool_flag("GDCONTESTAI_FDL_ONLY");
     if (fdl_only_mode) {

@@ -750,25 +750,56 @@ void SAOptimizer::run(Graph& graph, int64_t max_time_ms) {
 }
 
 void SAOptimizer::run(Graph& graph, std::chrono::steady_clock::time_point deadline) {
+    run_impl(graph, deadline, false);
+}
+
+void SAOptimizer::run_chunk(Graph& graph, std::chrono::steady_clock::time_point deadline) {
+    run_impl(graph, deadline, true);
+}
+
+void SAOptimizer::invalidate_incremental_state() noexcept {
+    m_incremental_state_valid = false;
+    m_incremental_state = IncrementalCrossingState{};
+    m_move_scratch = IncrementalMoveScratch{};
+}
+
+void SAOptimizer::run_impl(Graph& graph,
+                          std::chrono::steady_clock::time_point deadline,
+                          bool persistent_chunk_mode) {
     m_run_stats = SARunStats{};
 
     if (std::chrono::steady_clock::now() >= deadline || graph.num_nodes() <= 0 || graph.num_edges() <= 0) {
+        if (persistent_chunk_mode) {
+            invalidate_incremental_state();
+        }
         m_run_stats.exit_reason_code = 2;
         m_current_stats = compute_crossing_stats(graph);
         m_best_stats = m_current_stats;
         return;
     }
 
-    (void)legalize_graph_drawing(graph);
+    if (!persistent_chunk_mode || !m_incremental_state_valid) {
+        (void)legalize_graph_drawing(graph);
+        if (!initialize_incremental_crossing_state(graph, m_incremental_state, deadline)) {
+            if (persistent_chunk_mode) {
+                invalidate_incremental_state();
+            }
+            m_run_stats.exit_reason_code = 3;
+            m_current_stats = CrossingStats{};
+            m_best_stats = m_current_stats;
+            return;
+        }
+        m_incremental_state_valid = true;
+    }
 
-    IncrementalCrossingState incremental_state;
-    if (!initialize_incremental_crossing_state(graph, incremental_state, deadline)) {
+    if (!m_incremental_state_valid) {
         m_run_stats.exit_reason_code = 3;
         m_current_stats = CrossingStats{};
         m_best_stats = m_current_stats;
         return;
     }
-    m_current_stats = incremental_state.current_stats;
+
+    m_current_stats = m_incremental_state.current_stats;
     m_best_stats = m_current_stats;
     m_run_stats.best_k_seen = m_best_stats.k_planarity_value;
     m_run_stats.best_frontier_at_best_k = m_best_stats.edges_with_k_planarity_value;
@@ -790,8 +821,8 @@ void SAOptimizer::run(Graph& graph, std::chrono::steady_clock::time_point deadli
     const RuntimeAnnealConfig runtime_config = calibrate_runtime_config(
         m_config,
         graph,
-        incremental_state,
-        move_scratch,
+        m_incremental_state,
+        m_move_scratch,
         m_rng,
         calibration_deadline,
         m_current_stats);
@@ -891,18 +922,18 @@ void SAOptimizer::run(Graph& graph, std::chrono::steady_clock::time_point deadli
             (current_k > 0) &&
             (m_rng.next_below(100u) < 80u);
         int32_t node_id = focus_offending
-            ? select_bottleneck_cluster_node(graph, incremental_state, m_rng, current_k)
-            : select_priority_node(graph, incremental_state, m_rng, priority_sample_count);
+            ? select_bottleneck_cluster_node(graph, m_incremental_state, m_rng, current_k)
+            : select_priority_node(graph, m_incremental_state, m_rng, priority_sample_count);
 
         const bool use_bottleneck_cluster =
             k_barrier_mode &&
             !focus_offending &&
             (m_rng.next_below(100u) < (tight_bottleneck_mode ? 65u : 42u));
         if (use_bottleneck_cluster) {
-            node_id = select_bottleneck_cluster_node(graph, incremental_state, m_rng, current_k);
+            node_id = select_bottleneck_cluster_node(graph, m_incremental_state, m_rng, current_k);
         }
         if (tight_bottleneck_mode && (m_rng.next_below(100u) < 40u)) {
-            node_id = select_frontier_node(graph, incremental_state, m_rng, current_k);
+            node_id = select_frontier_node(graph, m_incremental_state, m_rng, current_k);
         }
         const Vector2D old_pos = graph.get_pos(node_id);
         const int32_t degree = node_degree(graph, node_id);
@@ -936,7 +967,7 @@ void SAOptimizer::run(Graph& graph, std::chrono::steady_clock::time_point deadli
         if (experimental_far_escape) {
             proposed = propose_far_escape_targeted(
                 graph,
-                incremental_state,
+                m_incremental_state,
                 node_id,
                 move_radius,
                 progress,
@@ -952,7 +983,7 @@ void SAOptimizer::run(Graph& graph, std::chrono::steady_clock::time_point deadli
         } else if (macro_kick) {
             proposed = propose_perpendicular_kick(
                 graph,
-                incremental_state,
+                m_incremental_state,
                 node_id,
                 std::max<int32_t>(move_radius, 3),
                 m_rng,
@@ -967,7 +998,7 @@ void SAOptimizer::run(Graph& graph, std::chrono::steady_clock::time_point deadli
         const int32_t local_snap_radius = std::clamp(std::max<int32_t>(4, move_radius / 2), 4, 24);
         proposed = snap_candidate_to_local_legal(
             graph,
-            incremental_state,
+            m_incremental_state,
             node_id,
             old_pos,
             proposed,
@@ -982,15 +1013,15 @@ void SAOptimizer::run(Graph& graph, std::chrono::steady_clock::time_point deadli
             node_id,
             old_pos,
             proposed,
-            incremental_state,
-            move_scratch,
+            m_incremental_state,
+            m_move_scratch,
             proposed_stats,
             deadline)) {
             ++m_run_stats.incremental_timeout_skips;
             continue;
         }
 
-        if (!move_scratch.move_legal) {
+        if (!m_move_scratch.move_legal) {
             ++m_run_stats.illegal_moves;
             continue;
         }
@@ -1057,7 +1088,7 @@ void SAOptimizer::run(Graph& graph, std::chrono::steady_clock::time_point deadli
                 ++m_run_stats.accepted_k_worse_gt1;
             }
             m_current_stats = proposed_stats;
-            commit_incremental_move(graph, node_id, old_pos, proposed, incremental_state, proposed_stats, move_scratch);
+            commit_incremental_move(graph, node_id, old_pos, proposed, m_incremental_state, proposed_stats, m_move_scratch);
             if (is_better_k_goal(proposed_stats, m_best_stats)) {
                 ++m_run_stats.best_updates;
                 if (m_run_stats.first_best_iteration == 0) {
@@ -1077,7 +1108,7 @@ void SAOptimizer::run(Graph& graph, std::chrono::steady_clock::time_point deadli
                 ++no_improve_streak;
             }
         } else {
-            rollback_incremental_move(incremental_state, graph, move_scratch);
+            rollback_incremental_move(m_incremental_state, graph, m_move_scratch);
             ++m_run_stats.rejected_energy_moves;
             ++m_run_stats.rejected_probability_moves;
             ++no_improve_streak;
@@ -1106,14 +1137,21 @@ void SAOptimizer::run(Graph& graph, std::chrono::steady_clock::time_point deadli
         }
     }
 
-    graph = std::move(best_graph);
-    m_run_stats.final_k_before_legalize = m_best_stats.k_planarity_value;
-    (void)legalize_graph_drawing(graph);
-    m_current_stats = compute_crossing_stats(graph);
-    m_best_stats = m_current_stats;
-    m_run_stats.final_k_after_legalize = m_best_stats.k_planarity_value;
-    if (m_run_stats.final_k_after_legalize > m_run_stats.final_k_before_legalize) {
-        m_run_stats.legalizer_k_regression = 1;
+    if (persistent_chunk_mode) {
+        m_run_stats.final_k_before_legalize = m_current_stats.k_planarity_value;
+        m_run_stats.final_k_after_legalize = m_current_stats.k_planarity_value;
+        m_best_stats = m_current_stats;
+    } else {
+        graph = std::move(best_graph);
+        m_run_stats.final_k_before_legalize = m_best_stats.k_planarity_value;
+        (void)legalize_graph_drawing(graph);
+        m_current_stats = compute_crossing_stats(graph);
+        m_best_stats = m_current_stats;
+        m_run_stats.final_k_after_legalize = m_best_stats.k_planarity_value;
+        if (m_run_stats.final_k_after_legalize > m_run_stats.final_k_before_legalize) {
+            m_run_stats.legalizer_k_regression = 1;
+        }
+        invalidate_incremental_state();
     }
 }
 

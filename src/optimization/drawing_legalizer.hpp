@@ -10,6 +10,7 @@
 #include "../graph/graph.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cassert>
 #include <cstdint>
 #include <cmath>
@@ -35,6 +36,7 @@ struct DrawingLegalizationResult {
     DrawingConstraintReport before;
     DrawingConstraintReport after;
     int32_t moved_nodes{0};
+    bool deadline_hit{false};
 
     [[nodiscard]] bool changed() const noexcept {
         return moved_nodes > 0;
@@ -758,11 +760,17 @@ inline DrawingConstraintReport inspect_drawing_constraints(const Graph& graph) {
     return index.inspect(graph);
 }
 
-inline DrawingLegalizationResult legalize_graph_drawing(Graph& graph) {
+inline DrawingLegalizationResult legalize_graph_drawing(Graph& graph,
+                                                        std::chrono::steady_clock::time_point deadline) {
     struct OffenderCandidate {
         int32_t node_id;
         bool is_duplicate;
         int32_t degree;
+    };
+
+    const bool bounded_deadline = (deadline != std::chrono::steady_clock::time_point::max());
+    auto expired = [&]() noexcept -> bool {
+        return bounded_deadline && (std::chrono::steady_clock::now() >= deadline);
     };
 
     DrawingLegalizationResult result;
@@ -787,9 +795,22 @@ inline DrawingLegalizationResult legalize_graph_drawing(Graph& graph) {
     std::vector<OffenderCandidate> sorted_offenders;
     offenders.reserve(static_cast<size_t>(std::max<int32_t>(1, num_nodes)));
     for (int32_t pass = 0; pass < max_passes; ++pass) {
+        if (expired()) {
+            result.after = index.inspect(graph);
+            result.moved_nodes = displaced_nodes;
+            result.deadline_hit = true;
+            return result;
+        }
+
         offenders.clear();
         sorted_offenders.clear();
         for (int32_t node_id = 0; node_id < num_nodes; ++node_id) {
+            if ((node_id & 63) == 0 && expired()) {
+                result.after = index.inspect(graph);
+                result.moved_nodes = displaced_nodes;
+                result.deadline_hit = true;
+                return result;
+            }
             if (index.node_has_conflict(graph, node_id)) {
                 offenders.push_back(node_id);
             }
@@ -821,6 +842,13 @@ inline DrawingLegalizationResult legalize_graph_drawing(Graph& graph) {
 
         bool moved_in_pass = false;
         for (const OffenderCandidate& candidate : sorted_offenders) {
+            if (expired()) {
+                result.after = index.inspect(graph);
+                result.moved_nodes = displaced_nodes;
+                result.deadline_hit = true;
+                return result;
+            }
+
             const int32_t node_id = candidate.node_id;
             if (!index.node_has_conflict(graph, node_id)) {
                 continue;
@@ -860,6 +888,10 @@ inline DrawingLegalizationResult legalize_graph_drawing(Graph& graph) {
     result.after = index.inspect(graph);
     result.moved_nodes = displaced_nodes;
     return result;
+}
+
+inline DrawingLegalizationResult legalize_graph_drawing(Graph& graph) {
+    return legalize_graph_drawing(graph, std::chrono::steady_clock::time_point::max());
 }
 
 } // namespace optimization

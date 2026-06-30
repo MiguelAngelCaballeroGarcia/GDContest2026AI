@@ -8,6 +8,7 @@
 #pragma once
 
 #include "crossing_stats.hpp"
+#include "incremental_crossings.hpp"
 #include "mutators.hpp"
 
 #include <chrono>
@@ -96,6 +97,9 @@ private:
     CrossingStats m_current_stats{};
     CrossingStats m_best_stats{};
     SARunStats m_run_stats{};
+    IncrementalCrossingState m_incremental_state{};
+    IncrementalMoveScratch m_move_scratch{};
+    bool m_incremental_state_valid{false};
 
     [[nodiscard]] static int64_t composite_energy(const CrossingStats& stats,
                                                   int64_t k_scale,
@@ -103,12 +107,17 @@ private:
                                                   int64_t crossings_scale) noexcept;
     [[nodiscard]] static bool is_better_k_goal(const CrossingStats& lhs, const CrossingStats& rhs) noexcept;
     [[nodiscard]] Vector2D propose_move(const Graph& graph, int32_t node_id, int32_t move_radius) noexcept;
+    void run_impl(Graph& graph,
+                  std::chrono::steady_clock::time_point deadline,
+                  bool persistent_chunk_mode);
 
 public:
     explicit SAOptimizer(uint64_t seed, SAConfig config = {});
 
     void run(Graph& graph, int64_t max_time_ms);
     void run(Graph& graph, std::chrono::steady_clock::time_point deadline);
+    void run_chunk(Graph& graph, std::chrono::steady_clock::time_point deadline);
+    void invalidate_incremental_state() noexcept;
 
     [[nodiscard]] const CrossingStats& get_best_stats() const noexcept { return m_best_stats; }
     [[nodiscard]] const SARunStats& get_run_stats() const noexcept { return m_run_stats; }
