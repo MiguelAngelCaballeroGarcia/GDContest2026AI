@@ -163,7 +163,7 @@ struct CrossingStats {
 
     const int64_t safe_edges = std::max<int64_t>(1, static_cast<int64_t>(edge_count) - 1);
     const long double x = static_cast<long double>(safe_edges);
-    const long double max_lp_penalty = std::powl(x, static_cast<long double>(kCrossingPenaltyExponent));
+    const long double max_lp_penalty = std::pow(x, static_cast<long double>(kCrossingPenaltyExponent));
     if (max_lp_penalty <= kTargetMaxPerEdgePenalty) {
         return 1;
     }
