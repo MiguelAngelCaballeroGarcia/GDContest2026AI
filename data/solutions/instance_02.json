@@ -1,0 +1,6 @@
+{
+  "nodes":[{"id":0,"x":396287,"y":259116},{"id":1,"x":515939,"y":626904},{"id":2,"x":997044,"y":656859},{"id":3,"x":111301,"y":58166},{"id":4,"x":440346,"y":738688},{"id":5,"x":53751,"y":937028},{"id":6,"x":990664,"y":655941},{"id":7,"x":505572,"y":343435},{"id":8,"x":540883,"y":363600},{"id":9,"x":573185,"y":651443},{"id":10,"x":421573,"y":797291},{"id":11,"x":62365,"y":553246}],
+  "edges":[{"source":3,"target":4},{"source":4,"target":9},{"source":4,"target":6},{"source":0,"target":2},{"source":5,"target":10},{"source":0,"target":5},{"source":1,"target":6},{"source":2,"target":5},{"source":1,"target":3},{"source":1,"target":9},{"source":2,"target":8},{"source":6,"target":8},{"source":4,"target":5},{"source":5,"target":6},{"source":3,"target":6},{"source":0,"target":1},{"source":0,"target":7},{"source":2,"target":4},{"source":1,"target":2},{"source":0,"target":4},{"source":1,"target":5},{"source":1,"target":8},{"source":6,"target":7},{"source":3,"target":5},{"source":3,"target":11},{"source":4,"target":10},{"source":5,"target":11},{"source":0,"target":3},{"source":1,"target":4},{"source":0,"target":6},{"source":2,"target":3},{"source":2,"target":6},{"source":6,"target":9},{"source":7,"target":8}],
+  "width":1000000,
+  "height":1000000
+}

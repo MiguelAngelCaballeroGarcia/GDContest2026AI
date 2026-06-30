@@ -1,0 +1,10 @@
+^C:\USERS\ASUS\DESKTOP\GDCONTESTAI2\BUILD-CLEAN\CMAKEFILES\5DF91DF24D86A9B42C9426440E04DDBB\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/Asus/Desktop/GDContestAI2 -BC:/Users/Asus/Desktop/GDContestAI2/build-clean --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/Asus/Desktop/GDContestAI2/build-clean/GDContestAI.slnx
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

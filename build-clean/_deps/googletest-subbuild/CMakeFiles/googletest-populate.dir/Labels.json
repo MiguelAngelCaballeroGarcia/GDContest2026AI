@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "C:/Users/Asus/Desktop/GDContestAI2/build-clean/_deps/googletest-subbuild/CMakeFiles/googletest-populate"
+		},
+		{
+			"file" : "C:/Users/Asus/Desktop/GDContestAI2/build-clean/_deps/googletest-subbuild/CMakeFiles/3a058470aedbe4418c7c1b0ad69b6907/googletest-populate.rule"
+		},
+		{
+			"file" : "C:/Users/Asus/Desktop/GDContestAI2/build-clean/_deps/googletest-subbuild/CMakeFiles/748c0f8ddf120b9663bc12e7a85534c2/googletest-populate-complete.rule"
+		},
+		{
+			"file" : "C:/Users/Asus/Desktop/GDContestAI2/build-clean/_deps/googletest-subbuild/CMakeFiles/4643c7b60d065b009626d7923ca11d6d/googletest-populate-build.rule"
+		},
+		{
+			"file" : "C:/Users/Asus/Desktop/GDContestAI2/build-clean/_deps/googletest-subbuild/CMakeFiles/4643c7b60d065b009626d7923ca11d6d/googletest-populate-configure.rule"
+		},
+		{
+			"file" : "C:/Users/Asus/Desktop/GDContestAI2/build-clean/_deps/googletest-subbuild/CMakeFiles/4643c7b60d065b009626d7923ca11d6d/googletest-populate-download.rule"
+		},
+		{
+			"file" : "C:/Users/Asus/Desktop/GDContestAI2/build-clean/_deps/googletest-subbuild/CMakeFiles/4643c7b60d065b009626d7923ca11d6d/googletest-populate-install.rule"
+		},
+		{
+			"file" : "C:/Users/Asus/Desktop/GDContestAI2/build-clean/_deps/googletest-subbuild/CMakeFiles/4643c7b60d065b009626d7923ca11d6d/googletest-populate-mkdir.rule"
+		},
+		{
+			"file" : "C:/Users/Asus/Desktop/GDContestAI2/build-clean/_deps/googletest-subbuild/CMakeFiles/4643c7b60d065b009626d7923ca11d6d/googletest-populate-patch.rule"
+		},
+		{
+			"file" : "C:/Users/Asus/Desktop/GDContestAI2/build-clean/_deps/googletest-subbuild/CMakeFiles/4643c7b60d065b009626d7923ca11d6d/googletest-populate-test.rule"
+		},
+		{
+			"file" : "C:/Users/Asus/Desktop/GDContestAI2/build-clean/_deps/googletest-subbuild/CMakeFiles/4643c7b60d065b009626d7923ca11d6d/googletest-populate-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"googletest-populate"
+		],
+		"name" : "googletest-populate"
+	}
+}

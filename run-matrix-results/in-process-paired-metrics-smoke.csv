@@ -1,0 +1,2 @@
+﻿"Graph","BudgetMs","Seed","BaselineK","AblatedK","PairedDeltaK","PolishEligible","PolishExecuted","RemainingBeforePolishMs","PlannedPolishBudgetMs","ElapsedPolishMs","Starved"
+"Automatic-8","2000","1337","10194","10194","0","False","False","-1","-1","-1","False"

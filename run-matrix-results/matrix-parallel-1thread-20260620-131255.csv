@@ -1,0 +1,2 @@
+﻿"BudgetMs","File","Threads","ExitCode","PipelineLines"
+"20000","C:\Users\Asus\Desktop\GDContestAI2\data\Automatic-1.json","1","0","[PIPELINE][budgets] input 0 initial_fdl_budget_ms=7499 final_lahc_budget_ms=9436 final_sa_budget_ms=5309 final_polish_budget_ms=250 planned_total_ms=22494 || [PIPELINE][summary] input 0 initial_fdl_ms=2 final_lahc_ms=9436 final_sa_ms=5309 final_polish_ms=48 final_k=10 final_crossings=461 final_lp=334564 saturated=0 budget_share_fdl=0.000135181 budget_share_lahc=0.637783 budget_share_sa=0.358837 budget_share_polish=0.00324434"

@@ -1,0 +1,2 @@
+﻿"LogFile","Graph","BudgetMs","Seed","InputIndex","RemainingBeforePolishMs","ReservedBudgetMs","PlannedBudgetMs","PolishElapsedMs","ImprovedFlag","PreK","PostK","DeltaK","PreCrossings","PostCrossings","DeltaCrossings","PreLp","PostLp","DeltaLp","Verdict"
+"Automatic-1_20000_seed1337.log","Automatic-1","20000","1337","0","249","250","250","13","1","10","10","0","424","423","-1","256780","254490","-2290","Neutral"

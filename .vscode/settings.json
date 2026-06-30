@@ -1,0 +1,12 @@
+{
+  // Use the CMake configure preset named 'msvc' (created in CMakePresets.json)
+  "cmake.configurePreset": "msvc",
+  // Ensure CMake Tools builds into the preset's binary dir
+  "cmake.buildDirectory": "${workspaceFolder}/build-msvc",
+  // Fallback generator to reduce accidental Ninja selection
+  "cmake.generator": "Visual Studio 18 2026",
+  // Optional: prefer the Visual Studio kit
+  "cmake.preferredGenerators": ["Visual Studio 18 2026", "Visual Studio 17 2022"],
+  // Enable configure on open to ensure consistent configure
+  "cmake.configureOnOpen": true
+}

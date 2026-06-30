@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="18.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Asus\Desktop\GDContestAI2\build-clean\_deps\googletest-subbuild\CMakeFiles\4643c7b60d065b009626d7923ca11d6d\googletest-populate-mkdir.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\Asus\Desktop\GDContestAI2\build-clean\_deps\googletest-subbuild\CMakeFiles\4643c7b60d065b009626d7923ca11d6d\googletest-populate-download.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\Asus\Desktop\GDContestAI2\build-clean\_deps\googletest-subbuild\CMakeFiles\4643c7b60d065b009626d7923ca11d6d\googletest-populate-update.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\Asus\Desktop\GDContestAI2\build-clean\_deps\googletest-subbuild\CMakeFiles\4643c7b60d065b009626d7923ca11d6d\googletest-populate-patch.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\Asus\Desktop\GDContestAI2\build-clean\_deps\googletest-subbuild\CMakeFiles\4643c7b60d065b009626d7923ca11d6d\googletest-populate-configure.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\Asus\Desktop\GDContestAI2\build-clean\_deps\googletest-subbuild\CMakeFiles\4643c7b60d065b009626d7923ca11d6d\googletest-populate-build.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\Asus\Desktop\GDContestAI2\build-clean\_deps\googletest-subbuild\CMakeFiles\4643c7b60d065b009626d7923ca11d6d\googletest-populate-install.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\Asus\Desktop\GDContestAI2\build-clean\_deps\googletest-subbuild\CMakeFiles\4643c7b60d065b009626d7923ca11d6d\googletest-populate-test.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\Asus\Desktop\GDContestAI2\build-clean\_deps\googletest-subbuild\CMakeFiles\748c0f8ddf120b9663bc12e7a85534c2\googletest-populate-complete.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\Asus\Desktop\GDContestAI2\build-clean\_deps\googletest-subbuild\CMakeFiles\3a058470aedbe4418c7c1b0ad69b6907\googletest-populate.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\Asus\Desktop\GDContestAI2\build-clean\_deps\googletest-subbuild\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Users\Asus\Desktop\GDContestAI2\build-clean\_deps\googletest-subbuild\CMakeFiles\googletest-populate" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{1DA78AAF-EEB1-373B-A389-763F098625B2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

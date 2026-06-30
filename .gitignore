@@ -1,0 +1,5 @@
+build/
+build-msvc/
+build-ninja/
+*.log
+*.obj

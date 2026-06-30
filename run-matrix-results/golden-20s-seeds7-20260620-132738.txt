@@ -1,0 +1,51 @@
+﻿Golden baseline source files:
+C:\Users\Asus\Desktop\GDContestAI2\run-matrix-results\matrix-parallel-1thread-20260620-132223.csv
+C:\Users\Asus\Desktop\GDContestAI2\run-matrix-results\matrix-parallel-1thread-20260620-132310.csv
+C:\Users\Asus\Desktop\GDContestAI2\run-matrix-results\matrix-parallel-1thread-20260620-132405.csv
+C:\Users\Asus\Desktop\GDContestAI2\run-matrix-results\matrix-parallel-1thread-20260620-132456.csv
+C:\Users\Asus\Desktop\GDContestAI2\run-matrix-results\matrix-parallel-1thread-20260620-132538.csv
+C:\Users\Asus\Desktop\GDContestAI2\run-matrix-results\matrix-parallel-1thread-20260620-132611.csv
+C:\Users\Asus\Desktop\GDContestAI2\run-matrix-results\matrix-parallel-1thread-20260620-132711.csv
+
+Analysis:
+
+BudgetMs Graph       Samples MedianK MedianCrossings KMin  KMax KSpread
+-------- -----       ------- ------- --------------- ----  ---- -------
+   20000 Automatic-1       7      11             461   10    13       3
+   20000 Automatic-2       7       5             159    4     5       1
+   20000 Automatic-3       7     100            6246   92   108      16
+   20000 Automatic-4       7      13            1039   12    17       5
+   20000 Automatic-5       7     161           51614  140   161      21
+   20000 Automatic-6       7    1213          696540 1187  1221      34
+   20000 Automatic-7       7     120           25014  108   131      23
+   20000 Automatic-8       7    9829        43814621 9690 10021     331
+   20000 Automatic-9       7     906          504550  822   954     132
+
+
+
+BudgetMs Graphs GlobalMedianK GlobalMedianCrossings WorstSpread
+-------- ------ ------------- --------------------- -----------
+   20000      9           120                 25014         331
+
+
+
+BudgetMs Graph       BaselineK MedianK DeltaK DeltaKPercent KSpread CapPercent CapViolated
+-------- -----       --------- ------- ------ ------------- ------- ---------- -----------
+   20000 Automatic-1        11      11      0             0       3          0       False
+   20000 Automatic-2         4       5      1            25       1          0        True
+   20000 Automatic-3        92     100      8        8,6957      16          0        True
+   20000 Automatic-4        10      13      3            30       5          0        True
+   20000 Automatic-5       161     161      0             0      21          0       False
+   20000 Automatic-6      1215    1213     -2       -0,1646      34          0       False
+   20000 Automatic-7       138     120    -18      -13,0435      23          0       False
+   20000 Automatic-8     10021    9829   -192        -1,916     331        1,5       False
+   20000 Automatic-9       875     906     31        3,5429     132          0        True
+
+
+
+BudgetMs MedianDeltaK MaxRegressionK CapViolations AcceptPolicyPass
+-------- ------------ -------------- ------------- ----------------
+   20000            0             31             4            False
+
+
+

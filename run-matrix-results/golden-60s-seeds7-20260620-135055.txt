@@ -1,0 +1,8 @@
+﻿Golden baseline source files:
+C:\Users\Asus\Desktop\GDContestAI2\run-matrix-results\matrix-parallel-1thread-20260620-133630.csv
+C:\Users\Asus\Desktop\GDContestAI2\run-matrix-results\matrix-parallel-1thread-20260620-133743.csv
+C:\Users\Asus\Desktop\GDContestAI2\run-matrix-results\matrix-parallel-1thread-20260620-133856.csv
+C:\Users\Asus\Desktop\GDContestAI2\run-matrix-results\matrix-parallel-1thread-20260620-134008.csv
+C:\Users\Asus\Desktop\GDContestAI2\run-matrix-results\matrix-parallel-1thread-20260620-134122.csv
+C:\Users\Asus\Desktop\GDContestAI2\run-matrix-results\matrix-parallel-1thread-20260620-134234.csv
+C:\Users\Asus\Desktop\GDContestAI2\run-matrix-results\matrix-parallel-1thread-20260620-134348.csv
